@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# process options
+OPTIND=1
+unset new copy todo
+while getopts 'nct' arg; do
+    case "${arg}" in
+        n) new=yes ;;
+        c) copy=yes ;;
+        t) todo=yes ;;
+        *) echo unknown option; exit ;;
+    esac
+done
+shift $((OPTIND-1))
+
+dir=$HOME/notes
+
+# if new note, edit new file and quit when finished
+if [ "$new" = yes ]; then
+    dayno=$(date +'%y%j')
+    i=a
+    while [ -e $dir/${dayno}${i}.txt ]
+    do
+        if [ $i = "z" ]; then
+            echo "too many notes today"
+            exit
+        else
+            i=$(echo $i | tr "a-y" "b-z")
+        fi
+    done
+    vim $dir/${dayno}${i}.txt
+    echo vim $dir/${dayno}${i}.txt >> $HOME/.zsh_history
+    exit
+fi
+
+# if todo, set pattern etc
+if [ "$todo" = yes ]; then
+    pattern="#todo"
+    key="--key=2"
+else
+    pattern="${*:-.}"
+    reverse=--reverse
+fi
+
+# select file
+cd $dir
+matches=$(grep -ir "$pattern")
+if [ -z "$matches" ]; then
+	echo "no notes on \"$pattern\""
+	exit
+fi
+clear
+match=$(echo "$matches"\
+    | sed -e 's/: \+/:/'\
+    | sort $key $reverse\
+    | fzy -l$(( LINES - 1 )))
+file=${match%%:*}
+line=${match##*:}
+cd "$OLDPWD"
+
+# if none selected, then do nothing and quit
+if [ -z "$file" ]; then
+    exit
+fi
+
+# if all we want is the path, then send it to the clipboard and quit
+if [ "$copy" = yes ]; then
+    echo -n $dir/$file > /dev/clipboard
+    echo copied \"$dir/$file\"
+    exit
+fi
+
+# edit the selected file
+vim -c "call search(\"$line\$\")" $dir/$file
+echo vim $dir/$file >> $HOME/.zsh_history

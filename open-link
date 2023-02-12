@@ -1,0 +1,7 @@
+#!/bin/sh
+
+dir=$HOME/notes
+desc="$(cat $dir/links.csv | sed 's/,.*//' | grep "${*:-.}" | fzy ),"
+[ "$desc" = "," ] && exit
+link=$(grep "$desc" $dir/links.csv | sed 's/.*, *//')
+cygstart "$link"
